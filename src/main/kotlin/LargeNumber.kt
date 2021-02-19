@@ -1,12 +1,18 @@
 import java.util.*
 
+@ExperimentalStdlibApi
 class LargeNumber {
     // Big endian representation of the large number
     private var BASE = 1000000000
     private var slices: MutableList<Int> = emptyList<Int>().toMutableList()
     private var sign: Int
-
     private var digitsPerSlice: Int = Int.MAX_VALUE.toString().length - 1
+
+    companion object {
+        val ZERO = LargeNumber("0")
+        val ONE = LargeNumber("1")
+        val TWO = LargeNumber("2")
+    }
 
     // This constructor expects a string representation of a large number in 10 radix and split it into 9 digits slices
     constructor(largeNumber: String) {
@@ -89,7 +95,6 @@ class LargeNumber {
     }
 
     // Implements multiplication for LargeNumber object
-    @ExperimentalStdlibApi
     operator fun times(largeNumber: LargeNumber): LargeNumber {
         val one = LargeNumber("1")
         // Fast return if one factor is zero
@@ -109,7 +114,6 @@ class LargeNumber {
     }
 
     // Implements right shift for LargeNumber object
-    @ExperimentalStdlibApi
     private infix fun shr(n: Int): LargeNumber {
         val result: MutableList<Int> = zeros(this.slices.size)
         for (i in 0 until result.size - 1) {
@@ -123,24 +127,22 @@ class LargeNumber {
         return LargeNumber(result, this.sign)
     }
 
+
+
     private fun remShr(n: Int): LargeNumber {
         val result: MutableList<Int> = this.slices
         var shift = n
-        var i = this.slices.size - 1
-        while (shift > 0) {
-            if (shift >= 32) {
-                result[i] = 0
-                shift -= 32
-            } else {
-                result[i] = (result[i] shl n) shr n
+        for (i in result.size - 1 downTo 0) {
+            result[i] = (result[i] shl shift) shr shift
+            shift -= 32
+            if (shift <= 0) {
+                break
             }
-            i--
         }
         return this - LargeNumber(result,this.sign)
     }
 
-    @ExperimentalStdlibApi
-    private fun montgomeryTimes(largeNumber: LargeNumber, n: LargeNumber, v: LargeNumber): LargeNumber {
+    fun montgomeryTimes(largeNumber: LargeNumber, n: LargeNumber, v: LargeNumber): LargeNumber {
         val k = n.modK() + 1
         val s = this * largeNumber
         val t = (s * v).remShr(k)
@@ -149,7 +151,6 @@ class LargeNumber {
         return if (u >= n) u - n else u
     }
 
-    @ExperimentalStdlibApi
     fun squareAndMultiply(exponent: LargeNumber, n: LargeNumber, r: LargeNumber, rModInv: LargeNumber, v: LargeNumber): LargeNumber {
         // Turn into Montgomery form
         val mgyForm = this.montgomeryTimes(r, n, v)
@@ -250,29 +251,17 @@ class LargeNumber {
     }
 
     // Implements multiplication between List<Int>
-    @ExperimentalStdlibApi
     private fun multiply(xSlices: MutableList<Int>, ySlices: MutableList<Int>): MutableList<Int>{
-        val lower: MutableList<Int>
-        val higher: MutableList<Int>
         var highStep: MutableList<Int>
         var times: Long
         // Determines which number has a greater absolute value
-        if (compareAbs(xSlices, ySlices) > 0) {
-            lower = ySlices
-            higher = xSlices
-        } else {
-            lower = xSlices
-            higher = ySlices
-        }
+        val resultSize = xSlices.size + ySlices.size
+        var result = zeros(resultSize)
 
-        var result = zeros(lower.size + higher.size)
-        val lowCursor = lower.size
-        val highCursor = higher.size
-
-        for (i in (lowCursor - 1) downTo 0) {
-            for (j in (highCursor - 1) downTo 0) {
-                highStep = zeros(lower.size + higher.size)
-                times = (lower[i].toLong() and 0xffffffffL) * (higher[j].toLong() and 0xffffffffL)
+        for (i in (xSlices.size - 1) downTo 0) {
+            for (j in (ySlices.size - 1) downTo 0) {
+                highStep = zeros(resultSize)
+                times = (xSlices[i].toLong() and 0xffffffffL) * (ySlices[j].toLong() and 0xffffffffL)
                 highStep[i + j + 1] = (times%BASE).toInt()
                 times /= BASE
                 highStep[i + j] = (times).toInt()
@@ -281,8 +270,6 @@ class LargeNumber {
         }
         return result
     }
-
-
 
     // Determines which List<Int> has a greater absolute value
     private fun compareAbs(xSlices: MutableList<Int>, ySlices: MutableList<Int>): Int {
@@ -321,7 +308,6 @@ class LargeNumber {
     }
 
     // Create a List<Int> of zeros with desired size
-    @ExperimentalStdlibApi
     private fun zeros(size: Int): MutableList<Int>{
         return buildList {
             for (i in 0 until size) {
@@ -330,7 +316,7 @@ class LargeNumber {
         }.toMutableList()
     }
 
-    private fun modK(): Int {
+    fun modK(): Int {
         var mostSignificantSlice = this.slices[0]
         var k = 0
         while (mostSignificantSlice != 0) {
@@ -338,5 +324,9 @@ class LargeNumber {
             mostSignificantSlice /= 2
         }
         return 32 * (this.slices.size - 1) + k
+    }
+
+    public fun changeDomain(r: LargeNumber, n: LargeNumber, v: LargeNumber):LargeNumber {
+        return this.montgomeryTimes(r, n, v)
     }
 }

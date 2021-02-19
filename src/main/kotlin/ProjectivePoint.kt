@@ -1,31 +1,32 @@
 import java.math.BigInteger
 
+@ExperimentalStdlibApi
 class ProjectivePoint {
-    private var x: BigInteger
-    private var y: BigInteger
-    private var z: BigInteger
+    private var x: LargeNumber
+    private var y: LargeNumber
+    private var z: LargeNumber
 
-    constructor(x: BigInteger, y: BigInteger, z: BigInteger) {
+    constructor(x: LargeNumber, y: LargeNumber, z: LargeNumber) {
         this.x = x
         this.y = y
         this.z = z
     }
 
-    constructor(x: BigInteger, y: BigInteger) {
+    constructor(x: LargeNumber, y: LargeNumber) {
         this.x = x
         this.y = y
-        this.z = BigInteger.valueOf(1)
+        this.z = LargeNumber.ONE
     }
 
     fun add(other: ProjectivePoint, ec: EllipticCurve): ProjectivePoint {
         if (this == other) {
             return double(ec)
         }
-        val A: BigInteger = montgomeryTimes(other.y, z, ec) - montgomeryTimes(other.z, y, ec)
-        val B: BigInteger = montgomeryTimes(other.x, z, ec) - montgomeryTimes(other.z, x, ec)
-        val B2: BigInteger = montgomeryTimes(B, B, ec)
-        val C: BigInteger = montgomeryTimes(montgomeryTimes(montgomeryTimes(A, A, ec), z, ec), other.z, ec) - montgomeryTimes(B2, B, ec) - montgomeryTimes(montgomeryTimes(montgomeryTimes(B2, x, ec), other.x, ec), montgomeryTimes(
-            BigInteger.TWO, ec.r, ec), ec)
+        val A: LargeNumber = montgomeryTimes(other.y, z, ec) - montgomeryTimes(other.z, y, ec)
+        val B: LargeNumber = montgomeryTimes(other.x, z, ec) - montgomeryTimes(other.z, x, ec)
+        val B2: LargeNumber = montgomeryTimes(B, B, ec)
+        val C: LargeNumber = montgomeryTimes(montgomeryTimes(montgomeryTimes(A, A, ec), z, ec), other.z, ec) - montgomeryTimes(B2, B, ec) - montgomeryTimes(montgomeryTimes(montgomeryTimes(B2, x, ec), other.x, ec), montgomeryTimes(
+            LargeNumber.TWO, ec.r, ec), ec)
         return ProjectivePoint(
             montgomeryTimes(B, C, ec),
             montgomeryTimes(A, (montgomeryTimes(montgomeryTimes(B2, x, ec), other.x, ec)) - C, ec) - montgomeryTimes(montgomeryTimes(montgomeryTimes(B2, B, ec), y, ec), other.z, ec),
@@ -34,15 +35,15 @@ class ProjectivePoint {
     }
 
     fun double(ec: EllipticCurve): ProjectivePoint {
-        val A = montgomeryTimes(montgomeryTimes(ec.a, z, ec), z, ec) + montgomeryTimes(montgomeryTimes(montgomeryTimes(BigInteger("3"), ec.r, ec), x, ec), x, ec)
+        val A = montgomeryTimes(montgomeryTimes(ec.a, z, ec), z, ec) + montgomeryTimes(montgomeryTimes(montgomeryTimes(LargeNumber("3"), ec.r, ec), x, ec), x, ec)
         val B = montgomeryTimes(y, z, ec)
         val B2 = montgomeryTimes(B, B, ec)
         val C = montgomeryTimes(montgomeryTimes(x, y, ec), B, ec)
-        val D = montgomeryTimes(A, A, ec) - montgomeryTimes(montgomeryTimes(BigInteger("8"), ec.r, ec), C, ec)
+        val D = montgomeryTimes(A, A, ec) - montgomeryTimes(montgomeryTimes(LargeNumber("8"), ec.r, ec), C, ec)
         return ProjectivePoint(
-            montgomeryTimes(montgomeryTimes(montgomeryTimes(BigInteger("3"), ec.r, ec), B, ec), D, ec),
-            montgomeryTimes(A, (montgomeryTimes(montgomeryTimes(BigInteger("4"), ec.r, ec), C, ec) - D), ec) - montgomeryTimes(montgomeryTimes(montgomeryTimes(montgomeryTimes(BigInteger("8"), ec.r, ec), y, ec), y, ec), B2, ec),
-        montgomeryTimes(montgomeryTimes(montgomeryTimes(BigInteger("8"), ec.r, ec), B2, ec), B, ec)
+            montgomeryTimes(montgomeryTimes(montgomeryTimes(LargeNumber("3"), ec.r, ec), B, ec), D, ec),
+            montgomeryTimes(A, (montgomeryTimes(montgomeryTimes(LargeNumber("4"), ec.r, ec), C, ec) - D), ec) - montgomeryTimes(montgomeryTimes(montgomeryTimes(montgomeryTimes(LargeNumber("8"), ec.r, ec), y, ec), y, ec), B2, ec),
+        montgomeryTimes(montgomeryTimes(montgomeryTimes(LargeNumber("8"), ec.r, ec), B2, ec), B, ec)
         )
     }
 
@@ -62,21 +63,21 @@ class ProjectivePoint {
     }
 
     fun belongsToCurve(ec: EllipticCurve): Boolean {
-        return ((z * y) % ec.p * y) % ec.p == (((x * x) % ec.p * x) % ec.p + (((ec.a * x) % ec.p * z) % ec.p * z) % ec.p + ((ec.b * z) % ec.p * z) % ec.p * z) % ec.p
+        return montgomeryTimes(montgomeryTimes(z, y ,ec), y, ec) == montgomeryTimes(montgomeryTimes(x, x, ec), x, ec) + montgomeryTimes(montgomeryTimes(ec.a, x, ec), z, ec) + montgomeryTimes(montgomeryTimes(ec.b, z, ec), z, ec)
     }
 
     fun displayCoordinates(ec: EllipticCurve) {
-        if (x > BigInteger("0")) {
+        if (x > LargeNumber.ZERO) {
             println(x)
         } else {
             println(x + ec.p)
         }
-        if (y > BigInteger("0")) {
+        if (y > LargeNumber.ZERO) {
             println(y)
         } else {
             println(y + ec.p)
         }
-        if (z > BigInteger("0")) {
+        if (z > LargeNumber.ZERO) {
             println(z)
         } else {
             println(z + ec.p)
@@ -85,26 +86,23 @@ class ProjectivePoint {
 
     private fun toMontgomeryDomain(ec: EllipticCurve): ProjectivePoint {
         return ProjectivePoint(
-            montgomeryTimes(this.x, ec.r, ec),
-            montgomeryTimes(this.y, ec.r, ec),
-            montgomeryTimes(this.y, ec.r, ec)
+            this.x.changeDomain(ec.r, ec.p, ec.v),
+            this.y.changeDomain(ec.r, ec.p, ec.v),
+            this.z.changeDomain(ec.r, ec.p, ec.v)
         )
     }
 
+
     private fun toClassicDomain(ec: EllipticCurve): ProjectivePoint {
         return ProjectivePoint(
-            montgomeryTimes(this.x, ec.rInv, ec),
-            montgomeryTimes(this.y, ec.rInv, ec),
-            montgomeryTimes(this.y, ec.rInv, ec)
+            this.x.changeDomain(ec.rInv, ec.p, ec.v),
+            this.y.changeDomain(ec.rInv, ec.p, ec.v),
+            this.z.changeDomain(ec.rInv, ec.p, ec.v)
         )
     }
 }
 
-fun montgomeryTimes(val1: BigInteger, val2: BigInteger, ec: EllipticCurve): BigInteger {
-    val s = val1 * val2
-    val sv = (s * ec.v)
-    val t = sv - sv shr (ec.r.intValueExact())
-    val m = s + t * ec.p
-    val u = m shr ec.r.intValueExact()
-    return if (u >= ec.p) u - ec.p else u
+@ExperimentalStdlibApi
+fun montgomeryTimes(val1: LargeNumber, val2: LargeNumber, ec: EllipticCurve): LargeNumber {
+    return val1.montgomeryTimes(val2, ec.p, ec.v)
 }

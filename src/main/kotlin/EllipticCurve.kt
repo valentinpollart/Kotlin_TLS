@@ -1,17 +1,17 @@
 import java.math.BigInteger
-
+@ExperimentalStdlibApi
 class EllipticCurve(
-    var p: BigInteger,
-    var n: BigInteger,
-    aTemp: BigInteger,
-    bTemp: BigInteger,
-    Gx: BigInteger,
-    Gy: BigInteger
+    var p: LargeNumber,
+    var n: LargeNumber,
+    aTemp: LargeNumber,
+    bTemp: LargeNumber,
+    Gx: LargeNumber,
+    Gy: LargeNumber
 ) {
     var G: ProjectivePoint = ProjectivePoint(Gx, Gy)
-    var r: BigInteger = BigInteger(p.bitLength().toString())
-    var rInv: BigInteger = r.modInverse(p)
-    var v: BigInteger = (r*rInv - BigInteger.ONE)*p.modInverse(r)
-    var a: BigInteger = montgomeryTimes(aTemp, r, this)
-    var b: BigInteger = montgomeryTimes(bTemp, r, this)
+    var r: LargeNumber = LargeNumber((p.modK() + 1).toString())
+    var rInv: LargeNumber = LargeNumber(BigInteger(r.toString()).modInverse(BigInteger(p.toString())).toString())
+    var v: LargeNumber = (r * rInv - LargeNumber.ONE) * LargeNumber(BigInteger(p.toString()).modInverse(BigInteger(r.toString())).toString())
+    var a: LargeNumber = montgomeryTimes(aTemp, r, this)
+    var b: LargeNumber = montgomeryTimes(bTemp, r, this)
 }
